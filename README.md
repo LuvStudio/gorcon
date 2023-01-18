@@ -1,2 +1,2 @@
 # gorcon
-Rcon client in Golang.
+Rcon client in Golang/Python
