@@ -28,13 +28,14 @@ class Rcon:
 
     def connect(self) -> None:
 
+        id: int = random.randint(-1, 0x7FFFFFFF)
         try:
             # connect to server
             self.connection.connect((self.host, self.port))
 
             # send auth information
             self.connection.send(
-                self.__make_packet(rcon.SERVERDATA_AUTH, self.password)
+                self.__make_packet(id, rcon.SERVERDATA_AUTH, self.password)
             )
 
         # 需要区分不同种类的错误并进行对应的处理
@@ -42,20 +43,21 @@ class Rcon:
             raise e
 
         res: bytes = self.connection.recv(4096)
-        res_dict = self.__unpack_packet(res)
+        res_dict: dict = self.__unpack_packet(res)
 
-        if (
-            res_dict["packet_type"] != rcon.SERVERDATA_AUTH_RESPONSE
-            or res_dict["id"] == -1
-        ):
+        if (res_dict["packet_type"] != rcon.SERVERDATA_AUTH_RESPONSE)
+            raise ValueError("Invalid response")
+        
+        if (res_dict["id"] == -1):
             raise ValueError("Authentication failed")
 
     def command(self, command: str) -> str:
 
         # send command
+        id: int = random.randint(-1, 0x7FFFFFFF)
         try:
             self.connection.send(
-                self.__make_packet(rcon.SERVERDATA_EXECCOMMAND, command)
+                self.__make_packet(id, rcon.SERVERDATA_EXECCOMMAND, command)
             )
 
             # receive response
@@ -63,19 +65,23 @@ class Rcon:
         except socket.error as e:
             raise e
 
-        res_dict = self.__unpack_packet(res)
+        res_dict: dict = self.__unpack_packet(res)
 
         if res_dict["packet_type"] != rcon.SERVERDATA_RESPONSE_VALUE:
             raise ValueError("Invalid response")
+        if res_dict["id"] != id:
+            raise ValueError("Incorrect id")
+
+        # 另一个需要考虑的问题是接收时的超时的处理
 
         return res_dict["body"]
 
     def close(self) -> None:
         self.connection.close()
 
-    def __make_packet(self, packet_type: int, body: str) -> bytearray:
+    def __make_packet(self, id: int, packet_type: int, body: str) -> bytearray:
 
-        id: int = random.randint(0, 0x7FFFFFFF)
+        # id: int = random.randint(-1, 0x7FFFFFFF)
 
         # make packet
         packet = bytearray()
@@ -91,10 +97,18 @@ class Rcon:
 
     def __unpack_packet(self, packet: bytearray) -> dict:
 
-        length = int.from_bytes(packet[0:4], byteorder="little")
-        id = int.from_bytes(packet[4:8], byteorder="little")
+        length: int = int.from_bytes(packet[0:4], byteorder="little")
+
+        if length + 4 != len(packet):
+            raise ValueError("Invalid packet length")
+
+        id: int = int.from_bytes(packet[4:8], byteorder="little")
         packet_type = int.from_bytes(packet[8:12], byteorder="little")
-        body = packet[12:-1].decode("utf-8")
+
+        try:
+            body: str = packet[12:-1].decode("utf-8")
+        except UnicodeDecodeError:
+            raise ValueError("Invalid packet body")
 
         return {"length": length, "id": id, "packet_type": packet_type, "body": body}
 
@@ -102,10 +116,10 @@ class Rcon:
         return f"<Rcon {self.host}:{self.port}>"
 
     def __enter__(self):
-        print("enter by __enter__")
+        # print("enter by __enter__")
         self.connect()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print("exit by __exit__")
+        # print("exit by __exit__")
         self.close()

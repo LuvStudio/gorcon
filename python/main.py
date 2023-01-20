@@ -8,9 +8,9 @@ password = "logitech"
 if __name__ == "__main__":
     try:
         with rcon.Rcon(host, port, password) as client:
-           while True:
+            while True:
                 command = input("Command: ")
                 print(client.command(command))
-    
+
     except KeyboardInterrupt:
         pass
