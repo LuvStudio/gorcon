@@ -45,10 +45,10 @@ class Rcon:
         res: bytes = self.connection.recv(4096)
         res_dict: dict = self.__unpack_packet(res)
 
-        if (res_dict["packet_type"] != rcon.SERVERDATA_AUTH_RESPONSE)
+        if res_dict["packet_type"] != rcon.SERVERDATA_AUTH_RESPONSE:
             raise ValueError("Invalid response")
-        
-        if (res_dict["id"] == -1):
+
+        if res_dict["id"] == -1:
             raise ValueError("Authentication failed")
 
     def command(self, command: str) -> str:
