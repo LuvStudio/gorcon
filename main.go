@@ -1,6 +1,11 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+
 	"./rcon"
 )
 
@@ -30,7 +35,23 @@ func main() {
 	Rcon.Password = "logitech"
 
 	Rcon.Connect()
+	defer Rcon.Close()
 
-	defer Rcon.Conn.Close()
+	inputReader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("> ")
+
+		input, _ := inputReader.ReadString('\n')
+		input = strings.Replace(input, "\n", "", -1)
+
+		switch input {
+		case "exit":
+			return
+		}
+
+		response, _ := Rcon.Command(strings.Replace(input, "\n", "", -1))
+
+		fmt.Println("Response:", response)
+	}
 
 }
